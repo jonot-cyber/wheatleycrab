@@ -12,6 +12,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+var stopChannel chan bool
+
 func download(s string, c chan string) {
 	fmt.Println("Downloading:", s)
 	downloadPath := "audio/" + strings.ReplaceAll(s, "/", "SLASH") + ".opus"
@@ -60,7 +62,14 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 		go download(songName, c)
 	},
 	"skip": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan string) {
-		fmt.Println("SKIPPING: ", <-c)
+		fmt.Println("SKIPPING")
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "**SKIPPED**",
+			},
+		})
+		stopChannel <- true
 	},
 }
 
@@ -72,6 +81,7 @@ func main() {
 	flag.Parse()
 
 	c := make(chan string)
+	stopChannel := make(chan bool)
 
 	discord, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -81,6 +91,7 @@ func main() {
 
 	discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := handlers[i.ApplicationCommandData().Name]; ok {
+			fmt.Println(i.ApplicationCommandData().Name)
 			h(s, i, c)
 		}
 	})
@@ -107,7 +118,8 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		dgvoice.PlayAudioFile(dgv, song, make(chan bool))
+		dgvoice.PlayAudioFile(dgv, song, stopChannel)
+		fmt.Println("Killed owo")
 		dgv.Disconnect()
 		dgv.Close()
 		os.Remove(song)
