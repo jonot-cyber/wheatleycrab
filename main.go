@@ -110,6 +110,6 @@ func main() {
 		dgvoice.PlayAudioFile(dgv, song, make(chan bool))
 		dgv.Disconnect()
 		dgv.Close()
-		os.Remove(song + ".part")
+		os.Remove(song)
 	}
 }
