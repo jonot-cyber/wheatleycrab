@@ -75,6 +75,7 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 
 func main() {
 	token := os.Getenv("DISCORD_TOKEN")
+
 	var server = flag.String("server", "811598800606461962", "The server to use")
 	var channel = flag.String("channel", "811598800606461968", "The channel to use")
 
@@ -91,7 +92,6 @@ func main() {
 
 	discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := handlers[i.ApplicationCommandData().Name]; ok {
-			fmt.Println(i.ApplicationCommandData().Name)
 			h(s, i, c)
 		}
 	})
@@ -112,6 +112,8 @@ func main() {
 
 	}
 
+	discord.UpdateGameStatus(0, "some tunez! 🎵")
+
 	for song := range c {
 		dgv, err := discord.ChannelVoiceJoin(*server, *channel, false, true)
 		if err != nil {
@@ -119,7 +121,6 @@ func main() {
 			return
 		}
 		dgvoice.PlayAudioFile(dgv, song, stopChannel)
-		fmt.Println("Killed owo")
 		dgv.Disconnect()
 		dgv.Close()
 		os.Remove(song)
