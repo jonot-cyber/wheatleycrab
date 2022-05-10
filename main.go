@@ -12,9 +12,14 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type Song struct {
+	Path string;
+	Delete bool;
+}
+
 var stopChannel chan bool
 
-func download(s string, c chan string) {
+func download(s string, c chan Song) {
 	fmt.Println("Downloading:", s)
 	downloadPath := "audio/" + strings.ReplaceAll(s, "/", "SLASH") + ".opus"
 	go func() {
@@ -27,7 +32,11 @@ func download(s string, c chan string) {
 		os.Rename(downloadPath, downloadPath+".part")
 	}()
 	time.Sleep(time.Second * 2)
-	c <- downloadPath + ".part"
+
+	c <- Song{
+		Path: downloadPath + ".part",
+		Delete: true,
+	}
 }
 
 var commands = []*discordgo.ApplicationCommand{
@@ -47,10 +56,14 @@ var commands = []*discordgo.ApplicationCommand{
 		Name:        "skip",
 		Description: "Skip this song",
 	},
+	{
+		Name: "scallywag",
+		Description: "Play the song",
+	},
 }
 
-var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan string){
-	"play": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan string) {
+var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song){
+	"play": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
 		songName := i.ApplicationCommandData().Options[0].StringValue()
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -61,7 +74,7 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 		})
 		go download(songName, c)
 	},
-	"skip": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan string) {
+	"skip": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
 		fmt.Println("SKIPPING")
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -70,6 +83,18 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 			},
 		})
 		stopChannel <- true
+	},
+	"scallywag": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "As you wish master",
+			},
+		})
+		c <- Song{
+			Path: "download/scallywag.opus",
+			Delete: false,
+		}
 	},
 }
 
@@ -81,7 +106,7 @@ func main() {
 
 	flag.Parse()
 
-	c := make(chan string)
+	c := make(chan Song)
 	stopChannel := make(chan bool)
 
 	discord, err := discordgo.New("Bot " + token)
@@ -120,9 +145,11 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		dgvoice.PlayAudioFile(dgv, song, stopChannel)
+		dgvoice.PlayAudioFile(dgv, song.Path, stopChannel)
 		dgv.Disconnect()
 		dgv.Close()
-		os.Remove(song)
+		if song.Delete {
+			os.Remove(song.Path)
+		}
 	}
 }
