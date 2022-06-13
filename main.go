@@ -80,7 +80,15 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "**SKIPPED**",
+				Embeds: []*discordgo.MessageEmbed{	
+					{	
+						Image: &discordgo.MessageEmbedImage{
+							URL: "https://upload.wikimedia.org/wikipedia/en/thumb/7/72/Clubhouse_Games_51_Worldwide_Classics.jpg/220px-Clubhouse_Games_51_Worldwide_Classics.jpg",
+						},
+					},	
+				}, 
 			},
+			
 		})
 		stopChannel <- true
 	},
@@ -88,7 +96,7 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "As you wish master",
+				Content: "Are you happy with yourself? All of the choices you've made up to this moment? If your child self had seen how you are now, would he be proud of you? Every second is a monument to the collapse of who you could've been. Here's your song.",
 			},
 		})
 		c <- Song{

@@ -8,6 +8,7 @@ wheatleycrab
 
 # Test binary, built with `go test -c`
 *.test
+launch.sh
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -15,4 +16,5 @@ wheatleycrab
 # Dependency directories (remove the comment below to include it)
 # vendor/
 audio/*
+download/*
 .env
