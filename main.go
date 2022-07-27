@@ -60,6 +60,18 @@ var commands = []*discordgo.ApplicationCommand{
 		Name: "scallywag",
 		Description: "Play the song",
 	},
+	{
+	    Name: "playstealth",
+	    Description: "Play a song, secretly",
+	    Options: []*discordgo.ApplicationCommandOption{
+		{
+		    Type: discordgo.ApplicationCommandOptionString,
+		    Name: "song",
+		    Description: "The song to be played",
+		    Required: true,
+		},
+	    },
+	},
 }
 
 var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song){
@@ -104,6 +116,18 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 			Delete: false,
 		}
 	},
+	"playstealth": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
+		songName := i.ApplicationCommandData().Options[0].StringValue()
+
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "|| You got it ||",
+			},
+		})
+		go download(songName, c)
+	},
+
 }
 
 func main() {
