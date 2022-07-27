@@ -13,14 +13,15 @@ import (
 )
 
 type Song struct {
-	Path string;
-	Delete bool;
+	Path   string
+	Delete bool
 }
 
 var stopChannel chan bool
 
 func download(s string, c chan Song) {
-	fmt.Println("Downloading:", s)
+	// print that song s is downloading, along with a timestamp
+	fmt.Printf("[%s] Downloading \"%s\"\n", time.Now().Format("15:04:05"), s)
 	downloadPath := "audio/" + strings.ReplaceAll(s, "/", "SLASH") + ".opus"
 	go func() {
 		cmd := exec.Command("youtube-dl", "-x", "--default-search", "ytsearch", "--audio-format", "opus", s, "-o", downloadPath)
@@ -28,13 +29,14 @@ func download(s string, c chan Song) {
 		if err != nil {
 			return
 		}
-		fmt.Println("Download of " + s + " complete!")
+		// print that the downloading of song s is done, along with a timestamp
+		fmt.Printf("[%s] Downloaded \"%s\"\n", time.Now().Format("15:04:05"), s)
 		os.Rename(downloadPath, downloadPath+".part")
 	}()
 	time.Sleep(time.Second * 2)
 
 	c <- Song{
-		Path: downloadPath + ".part",
+		Path:   downloadPath + ".part",
 		Delete: true,
 	}
 }
@@ -57,20 +59,20 @@ var commands = []*discordgo.ApplicationCommand{
 		Description: "Skip this song",
 	},
 	{
-		Name: "scallywag",
+		Name:        "scallywag",
 		Description: "Play the song",
 	},
 	{
-	    Name: "playstealth",
-	    Description: "Play a song, secretly",
-	    Options: []*discordgo.ApplicationCommandOption{
-		{
-		    Type: discordgo.ApplicationCommandOptionString,
-		    Name: "song",
-		    Description: "The song to be played",
-		    Required: true,
+		Name:        "playstealth",
+		Description: "Play a song, secretly",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "song",
+				Description: "The song to be played",
+				Required:    true,
+			},
 		},
-	    },
 	},
 }
 
@@ -92,15 +94,14 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "**SKIPPED**",
-				Embeds: []*discordgo.MessageEmbed{	
-					{	
+				Embeds: []*discordgo.MessageEmbed{
+					{
 						Image: &discordgo.MessageEmbedImage{
 							URL: "https://upload.wikimedia.org/wikipedia/en/thumb/7/72/Clubhouse_Games_51_Worldwide_Classics.jpg/220px-Clubhouse_Games_51_Worldwide_Classics.jpg",
 						},
-					},	
-				}, 
+					},
+				},
 			},
-			
 		})
 		stopChannel <- true
 	},
@@ -112,7 +113,7 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 			},
 		})
 		c <- Song{
-			Path: "download/scallywag.opus",
+			Path:   "download/scallywag.opus",
 			Delete: false,
 		}
 	},
@@ -127,7 +128,6 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 		})
 		go download(songName, c)
 	},
-
 }
 
 func main() {
@@ -180,6 +180,8 @@ func main() {
 		dgvoice.PlayAudioFile(dgv, song.Path, stopChannel)
 		dgv.Disconnect()
 		dgv.Close()
+
+		// if song is marked for deletion, delete it
 		if song.Delete {
 			os.Remove(song.Path)
 		}
