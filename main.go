@@ -20,7 +20,6 @@ type Song struct {
 var stopChannel chan bool
 
 func download(s string, c chan Song) {
-	// print that song s is downloading, along with a timestamp
 	fmt.Printf("[%s] Downloading \"%s\"\n", time.Now().Format("15:04:05"), s)
 	downloadPath := "audio/" + strings.ReplaceAll(s, "/", "SLASH") + ".opus"
 	go func() {
@@ -31,7 +30,10 @@ func download(s string, c chan Song) {
 		}
 		// print that the downloading of song s is done, along with a timestamp
 		fmt.Printf("[%s] Downloaded \"%s\"\n", time.Now().Format("15:04:05"), s)
-		os.Rename(downloadPath, downloadPath+".part")
+		err = os.Rename(downloadPath, downloadPath+".part")
+		if err != nil {
+			return
+		}
 	}()
 	time.Sleep(time.Second * 2)
 
@@ -80,17 +82,20 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 	"play": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
 		songName := i.ApplicationCommandData().Options[0].StringValue()
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "**Downloading and playing song: **" + songName,
 			},
 		})
+		if err != nil {
+			return
+		}
 		go download(songName, c)
 	},
 	"skip": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
 		fmt.Println("SKIPPING")
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "**SKIPPED**",
@@ -103,15 +108,21 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 				},
 			},
 		})
+		if err != nil {
+			return
+		}
 		stopChannel <- true
 	},
 	"scallywag": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Are you happy with yourself? All of the choices you've made up to this moment? If your child self had seen how you are now, would he be proud of you? Every second is a monument to the collapse of who you could've been. Here's your song.",
 			},
 		})
+		if err != nil {
+			return
+		}
 		c <- Song{
 			Path:   "download/scallywag.opus",
 			Delete: false,
@@ -120,12 +131,15 @@ var handlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCre
 	"playstealth": func(s *discordgo.Session, i *discordgo.InteractionCreate, c chan Song) {
 		songName := i.ApplicationCommandData().Options[0].StringValue()
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "|| You got it ||",
 			},
 		})
+		if err != nil {
+			return
+		}
 		go download(songName, c)
 	},
 }
@@ -158,7 +172,12 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	defer discord.Close()
+	defer func(discord *discordgo.Session) {
+		err := discord.Close()
+		if err != nil {
+
+		}
+	}(discord)
 
 	for _, v := range commands {
 		_, err := discord.ApplicationCommandCreate(discord.State.User.ID, *server, v)
@@ -169,21 +188,31 @@ func main() {
 
 	}
 
-	discord.UpdateGameStatus(0, "some tunez! 🎵")
+	err = discord.UpdateGameStatus(0, "some tunez! 🎵")
+	if err != nil {
+		return
+	}
 
 	for song := range c {
 		dgv, err := discord.ChannelVoiceJoin(*server, *channel, false, true)
 		if err != nil {
-			fmt.Println(err)
+			// Output that the bot could not join the voice channel and why
+			fmt.Println("Could not join voice channel: ", err)
 			return
 		}
 		dgvoice.PlayAudioFile(dgv, song.Path, stopChannel)
-		dgv.Disconnect()
+		err = dgv.Disconnect()
+		if err != nil {
+			return
+		}
 		dgv.Close()
 
 		// if song is marked for deletion, delete it
 		if song.Delete {
-			os.Remove(song.Path)
+			err := os.Remove(song.Path)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
